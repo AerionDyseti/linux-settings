@@ -1,0 +1,93 @@
+"$schema" = 'https://starship.rs/config-schema.json'
+
+
+# Use custom format
+format = '''$username$hostname:$directory$git_branch$git_metrics$git_state$fill$time
+$character'''
+
+[username]
+show_always = true
+format = "[$user]($style)"
+style_user = "green bold"
+style_root = "red bold"
+
+[directory]
+read_only = " 󰌾"
+truncation_length = 6
+truncation_symbol = "…/"
+truncate_to_repo = false
+before_repo_root_style = "cyan dimmed bold"
+repo_root_format ="[$before_root_path]($before_repo_root_style)[$repo_root]($repo_root_style)[$path]($style)[$read_only]($read_only_style) "
+home_symbol = "~"
+
+[hostname]
+style = "green bold"
+ssh_symbol = "@"
+format = "[@]($style)[$hostname]($style)"
+ssh_only = false
+disabled = false
+
+[os.symbols]
+Ubuntu = " "
+Windows = "󰍲 "
+
+[time]
+disabled = false
+style = "bold white"
+format = " [$time]($style)"
+
+[package]
+symbol = "󰏗 "
+
+
+[git_branch]
+symbol = " "
+format =" [$symbol$branch(:$remote_branch)]($style)"
+
+[git_metrics]
+disabled = false
+added_style = "bold light gray"
+deleted_style = "bold light gray"
+format = ' \([+$added]($added_style),[-$deleted]($deleted_style)\)'
+only_nonzero_diffs = false
+
+[git_state]
+format ="\\[[$state( $progress_current/$progress_total)]($style)\\] "
+
+
+
+# tool icons
+
+[bun]
+symbol = " "
+
+[docker_context]
+symbol = " "
+
+
+[gradle]
+symbol = " "
+
+[java]
+symbol = " "
+
+[kotlin]
+symbol = " "
+
+[nodejs]
+symbol = " "
+
+[php]
+symbol = " "
+
+[python]
+symbol = " "
+
+[ruby]
+symbol = " "
+
+[rust]
+symbol = "󱘗 "
+
+[status]
+symbol = " "

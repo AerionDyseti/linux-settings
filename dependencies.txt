@@ -1,0 +1,72 @@
+Dependencies for linux-settings config files
+============================================
+
+Shell Options: zsh OR fish (choose during install)
+
+ZSH Configuration
+-----------------
+
+.zshrc ($HOME/.zshrc)
+---------------------
+- starship      : Cross-shell prompt (https://starship.rs)
+                  Config: .config/starship.toml
+- bun           : JavaScript runtime & package manager (https://bun.sh)
+- uv            : Python package installer & resolver (https://github.com/astral-sh/uv)
+
+.config/zsh/aliases ($HOME/.config/zsh/aliases)
+-----------------------------------------------
+- systemctl     : Systemd service manager (built into systemd distros)
+- docker        : Container platform (https://docker.com)
+- lazydocker    : Docker TUI (https://github.com/jesseduffield/lazydocker)
+- eza           : Modern ls replacement (https://github.com/eza-community/eza)
+- claude        : Anthropic CLI (https://claude.ai/claude-code)
+- opencode      : AI coding CLI (https://github.com/opencode-ai/opencode)
+
+.config/zsh/functions ($HOME/.config/zsh/functions)
+---------------------------------------------------
+- (no external dependencies - uses shell builtins only)
+
+.config/environment ($HOME/.config/environment)
+-----------------------------------------------
+- Environment variables (user-defined, POSIX syntax)
+
+FISH Configuration
+------------------
+
+.config/fish/config.fish ($HOME/.config/fish/config.fish)
+---------------------------------------------------------
+- starship      : Cross-shell prompt (https://starship.rs)
+                  Config: .config/starship.toml
+- bun           : JavaScript runtime & package manager (https://bun.sh)
+- uv            : Python package installer & resolver (https://github.com/astral-sh/uv)
+- All aliases defined inline (fish syntax)
+
+.config/fish/functions/ ($HOME/.config/fish/functions/)
+-------------------------------------------------------
+- mkcd.fish     : Create directory and cd into it
+
+.config/environment.fish ($HOME/.config/environment.fish)
+---------------------------------------------------------
+- Environment variables (user-defined, fish syntax)
+
+Shared Configuration
+--------------------
+
+.config/starship.toml ($HOME/.config/starship.toml)
+---------------------------------------------------
+- Prompt theme configuration (works with both zsh and fish)
+
+.config/git/config ($HOME/.config/git/config)
+---------------------------------------------
+- git           : Version control (https://git-scm.com)
+- gh            : GitHub CLI for credential helper (https://cli.github.com)
+
+.claude/settings.json ($HOME/.claude/settings.json)
+---------------------------------------------------
+- statusLine            : Custom status bar (uses ccstatusline)
+- alwaysThinkingEnabled : Extended thinking mode
+
+.claude/commands/ ($HOME/.claude/commands/)
+-------------------------------------------
+- critical-think.md : Self-analysis prompt for reviewing responses
+- reboot.md         : Session handoff summary generator
