@@ -1,0 +1,20 @@
+# My personal favorites
+alias sc='systemctl'
+alias ssc='sudo systemctl'
+alias cls='clear'
+alias lzd='lazydocker'
+alias d='docker'
+
+
+# Use 'eza' to replace 'ls'
+alias ls='eza -a --color=always --group-directories-first --icons --grid'
+alias ll='eza -la --color=always --group-directories-first --icons --octal-permissions --grid'
+alias llm='eza -lbGd --header --git --sort=modified --color=always --group-directories-first --icons --grid'
+alias lx='eza -lbhHigUmuSa@ --time-style=long-iso --git --color-scale --color=always --group-directories-first --icons'
+alias lt='eza --tree --level=2 --color=always --group-directories-first --icons'
+
+# AI CLIs
+alias c='claude'
+alias cc='claude --continue'
+alias oc='opencode'
+alias occ='opencode --continue'

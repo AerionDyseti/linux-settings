@@ -1,20 +1,9 @@
 [user]
-	name = Kevin Whiteside
-	email = whiteside.kj@gmail.com
-[pull]
-	rebase = true
-[commit]
-	gpgSign = false
-[gui]
-	pruneduringfetch = true
-[smartgit "submodule"]
-	fetchalways = true
-	update = true
-	initializenew = true
-[push]
-	recurseSubmodules = check
-[taggrouping]
-	groups =
-	singles =
-[gc]
-	autoDetach = false
+	email = inblessedsilencewaiting@gmail.com
+	name = aeriondyseti
+[credential "https://github.com"]
+	helper =
+	helper = !/usr/bin/gh auth git-credential
+[credential "https://gist.github.com"]
+	helper =
+	helper = !/usr/bin/gh auth git-credential
