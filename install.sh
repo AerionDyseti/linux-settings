@@ -1,581 +1,444 @@
 #!/bin/bash
 set -e
 
-# Colors for output
+# =============================================================================
+# Castle.lan Shell Environment Setup
+# =============================================================================
+
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 BOLD='\033[1m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MARKER_START="# >>> castle.lan >>>"
+MARKER_END="# <<< castle.lan <<<"
 
-# Track what was installed for summary
+# State
 INSTALLED=()
-SKIPPED=()
-
-# Selected shell (zsh or fish)
 SELECTED_SHELL=""
+INSTALL_ALL=false
 
-info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
-}
+# =============================================================================
+# HELPERS
+# =============================================================================
 
-warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-}
+info()  { echo -e "${GREEN}[INFO]${NC} $1"; }
+warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
+error() { echo -e "${RED}[ERROR]${NC} $1"; }
+command_exists() { command -v "$1" &>/dev/null; }
 
-error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
-command_exists() {
-    command -v "$1" &> /dev/null
-}
-
-# Prompt user for yes/no with default
-# Usage: prompt "Question?" [y/n]
 prompt() {
-    local question="$1"
-    local default="${2:-y}"
-    local yn_hint
-
-    if [[ "$default" == "y" ]]; then
-        yn_hint="[Y/n]"
-    else
-        yn_hint="[y/N]"
-    fi
-
+    $INSTALL_ALL && return 0
+    local question="$1" default="${2:-y}"
+    local hint=$([[ "$default" == "y" ]] && echo "[Y/n]" || echo "[y/N]")
     while true; do
-        echo -en "${BLUE}${BOLD}?${NC} $question ${yn_hint} "
+        echo -en "${BLUE}${BOLD}?${NC} $question $hint "
         read -r response
         response="${response:-$default}"
         case "$response" in
             [Yy]*) return 0 ;;
             [Nn]*) return 1 ;;
-            *) echo "Please answer y or n." ;;
+            *) echo "Answer y or n." ;;
         esac
     done
 }
 
-# Prompt for shell choice
-# Usage: prompt_shell
 prompt_shell() {
-    echo -e "${BLUE}${BOLD}?${NC} Which shell would you like to use?"
+    echo -e "${BLUE}${BOLD}?${NC} Which shell to configure?"
     echo "  1) zsh"
-    echo "  2) fish"
+    echo "  2) bash"
     while true; do
-        echo -en "Enter choice [1/2]: "
+        echo -en "Choice [1/2]: "
         read -r choice
         case "$choice" in
-            1|zsh) SELECTED_SHELL="zsh"; return ;;
-            2|fish) SELECTED_SHELL="fish"; return ;;
-            *) echo "Please enter 1 or 2." ;;
+            1|zsh)  SELECTED_SHELL="zsh"; return ;;
+            2|bash) SELECTED_SHELL="bash"; return ;;
+            *) echo "Enter 1 or 2." ;;
         esac
     done
 }
 
+# Remove existing managed block from a file
+remove_managed_block() {
+    local file="$1"
+    [ -f "$file" ] || return 0
+    if grep -q "$MARKER_START" "$file"; then
+        sed -i "/$MARKER_START/,/$MARKER_END/d" "$file"
+    fi
+}
+
+# Append managed block to a file
+append_managed_block() {
+    local file="$1"
+    local content="$2"
+    {
+        echo ""
+        echo "$MARKER_START"
+        echo "$content"
+        echo "$MARKER_END"
+    } >> "$file"
+}
+
 # =============================================================================
-# Install zsh
+# INSTALLERS
 # =============================================================================
+
 install_zsh() {
-    if command_exists zsh; then
-        info "zsh is already installed"
-        return 0
-    fi
+    command_exists zsh && { info "zsh already installed"; return 0; }
     info "Installing zsh..."
-    sudo apt update
-    sudo apt install -y zsh
+    sudo apt update && sudo apt install -y zsh
+    INSTALLED+=("zsh")
 }
 
-# =============================================================================
-# Install fish
-# =============================================================================
-install_fish() {
-    if command_exists fish; then
-        info "fish is already installed"
-        return 0
-    fi
-    info "Installing fish..."
-    sudo apt update
-    sudo apt-add-repository -y ppa:fish-shell/release-3
-    sudo apt update
-    sudo apt install -y fish
-}
-
-# =============================================================================
-# Install starship prompt
-# =============================================================================
 install_starship() {
     if command_exists starship; then
-        info "starship is already installed"
+        info "starship already installed"
     else
         info "Installing starship..."
         curl -sS https://starship.rs/install.sh | sh -s -- -y
+        INSTALLED+=("starship")
     fi
-
-    # Copy starship config
-    info "Copying starship configuration..."
-    mkdir -p "$HOME/.config"
-    cp "$SCRIPT_DIR/.config/starship.toml" "$HOME/.config/starship.toml"
+    
+    if [ -f "$SCRIPT_DIR/config/starship.toml" ]; then
+        mkdir -p "$HOME/.config"
+        cp "$SCRIPT_DIR/config/starship.toml" "$HOME/.config/starship.toml"
+        info "Copied starship.toml"
+    fi
 }
 
-# =============================================================================
-# Install bun
-# =============================================================================
 install_bun() {
-    if command_exists bun; then
-        info "bun is already installed"
-        return 0
-    fi
-    info "Installing bun..."
+    command_exists bun && { info "bun already installed"; return 0; }
+    prompt "Install bun?" || return 0
     curl -fsSL https://bun.sh/install | bash
+    export BUN_INSTALL="$HOME/.bun"
+    export PATH="$BUN_INSTALL/bin:$PATH"
+    INSTALLED+=("bun")
 }
 
-# =============================================================================
-# Install uv (Python package manager)
-# =============================================================================
 install_uv() {
-    if command_exists uv; then
-        info "uv is already installed"
-        return 0
-    fi
-    info "Installing uv..."
+    command_exists uv && { info "uv already installed"; return 0; }
+    prompt "Install uv?" || return 0
     curl -LsSf https://astral.sh/uv/install.sh | sh
+    INSTALLED+=("uv")
 }
 
-# =============================================================================
-# Install Docker
-# =============================================================================
 install_docker() {
-    if command_exists docker; then
-        info "docker is already installed"
-        return 0
-    fi
-    info "Installing docker..."
-    # Install prerequisites
+    command_exists docker && { info "docker already installed"; return 0; }
+    prompt "Install Docker?" || return 0
     sudo apt update
     sudo apt install -y ca-certificates curl gnupg
-
-    # Add Docker's official GPG key
     sudo install -m 0755 -d /etc/apt/keyrings
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
     sudo chmod a+r /etc/apt/keyrings/docker.gpg
-
-    # Add the repository to apt sources
-    echo \
-        "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-        $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-        sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+        | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
     sudo apt update
     sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-    # Add current user to docker group
     sudo usermod -aG docker "$USER"
-    warn "You may need to log out and back in for docker group changes to take effect"
+    INSTALLED+=("docker")
 }
 
-# =============================================================================
-# Install lazydocker
-# =============================================================================
 install_lazydocker() {
-    if command_exists lazydocker; then
-        info "lazydocker is already installed"
-        return 0
-    fi
-    info "Installing lazydocker..."
+    command_exists lazydocker && { info "lazydocker already installed"; return 0; }
+    prompt "Install lazydocker?" || return 0
     curl https://raw.githubusercontent.com/jesseduffield/lazydocker/master/scripts/install_update_linux.sh | bash
+    INSTALLED+=("lazydocker")
 }
 
-# =============================================================================
-# Install eza (modern ls replacement)
-# =============================================================================
 install_eza() {
-    if command_exists eza; then
-        info "eza is already installed"
-        return 0
-    fi
-    info "Installing eza..."
-    sudo apt update
-    sudo apt install -y gpg
+    command_exists eza && { info "eza already installed"; return 0; }
+    prompt "Install eza?" || return 0
+    sudo apt update && sudo apt install -y gpg
     sudo mkdir -p /etc/apt/keyrings
     wget -qO- https://raw.githubusercontent.com/eza-community/eza/main/deb.asc | sudo gpg --dearmor -o /etc/apt/keyrings/gierens.gpg
-    echo "deb [signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main" | sudo tee /etc/apt/sources.list.d/gierens.list
-    sudo chmod 644 /etc/apt/keyrings/gierens.gpg
-    sudo chmod 644 /etc/apt/sources.list.d/gierens.list
-    sudo apt update
-    sudo apt install -y eza
+    echo "deb [signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main" \
+        | sudo tee /etc/apt/sources.list.d/gierens.list
+    sudo chmod 644 /etc/apt/keyrings/gierens.gpg /etc/apt/sources.list.d/gierens.list
+    sudo apt update && sudo apt install -y eza
+    INSTALLED+=("eza")
 }
 
-# =============================================================================
-# Install GitHub CLI (gh)
-# =============================================================================
-install_gh() {
-    if command_exists gh; then
-        info "gh is already installed"
-        return 0
-    fi
-    info "Installing GitHub CLI..."
-    sudo mkdir -p -m 755 /etc/apt/keyrings
-    wget -qO- https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null
-    sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-    sudo apt update
-    sudo apt install -y gh
+install_fdupes() {
+    command_exists fdupes && return 0
+    sudo apt install -y fdupes
 }
 
-# =============================================================================
-# Install Claude CLI
-# =============================================================================
 install_claude() {
-    if command_exists claude; then
-        info "claude is already installed"
-        return 0
-    fi
-    info "Installing Claude CLI..."
-    if command_exists npm; then
-        npm install -g @anthropic-ai/claude-code
-    elif command_exists bun; then
+    command_exists claude && { info "claude already installed"; return 0; }
+    prompt "Install Claude CLI?" || return 0
+    if command_exists bun; then
         bun install -g @anthropic-ai/claude-code
+    elif command_exists npm; then
+        npm install -g @anthropic-ai/claude-code
     else
-        warn "Neither npm nor bun available. Skipping Claude CLI installation."
-        warn "Install it manually: npm install -g @anthropic-ai/claude-code"
+        warn "Node or Bun required for Claude CLI"
         return 1
     fi
+    INSTALLED+=("claude")
+}
+
+install_tools() {
+    install_bun
+    install_uv
+    install_docker
+    install_lazydocker
+    install_eza
+    install_fdupes
+    install_claude
 }
 
 # =============================================================================
-# Install OpenCode CLI
+# CONFIG GENERATION
 # =============================================================================
-install_opencode() {
-    if command_exists opencode; then
-        info "opencode is already installed"
-        return 0
+
+# Filter content by [requires: tool] blocks
+# Usage: filter_by_requirements < input_file
+filter_by_requirements() {
+    local in_block=false
+    local tool_available=false
+    local current_tool=""
+    
+    while IFS= read -r line; do
+        # Check for block start
+        if [[ "$line" =~ ^#[[:space:]]*\[requires:[[:space:]]*([a-zA-Z0-9_-]+)\] ]]; then
+            in_block=true
+            current_tool="${BASH_REMATCH[1]}"
+            if command_exists "$current_tool"; then
+                tool_available=true
+                echo "$line"  # Keep the marker as documentation
+            else
+                tool_available=false
+            fi
+            continue
+        fi
+        
+        # Check for block end
+        if [[ "$line" =~ ^#[[:space:]]*\[end\] ]]; then
+            if $tool_available; then
+                echo "$line"
+            fi
+            in_block=false
+            tool_available=false
+            current_tool=""
+            continue
+        fi
+        
+        # Handle content
+        if $in_block; then
+            $tool_available && echo "$line"
+        else
+            echo "$line"
+        fi
+    done
+}
+
+# Generate the aliases content
+generate_aliases() {
+    if [ -f "$SCRIPT_DIR/config/aliases" ]; then
+        filter_by_requirements < "$SCRIPT_DIR/config/aliases"
     fi
-    info "Installing OpenCode CLI..."
-    if command_exists go; then
-        go install github.com/opencode-ai/opencode@latest
+}
+
+# Generate the functions content
+generate_functions() {
+    if [ -f "$SCRIPT_DIR/config/functions" ]; then
+        filter_by_requirements < "$SCRIPT_DIR/config/functions"
+    fi
+}
+
+# Generate user environment variables
+generate_env_file() {
+    if [ -f "$SCRIPT_DIR/config/env" ]; then
+        filter_by_requirements < "$SCRIPT_DIR/config/env"
+    fi
+}
+
+# Generate PATH/tool initialization (separate from user env)
+generate_paths() {
+    local content=""
+    
+    # Bun
+    if [ -d "$HOME/.bun" ]; then
+        content+='# Bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+'
+    fi
+
+    # Cargo/UV
+    if [ -f "$HOME/.cargo/env" ]; then
+        content+='
+# Cargo/UV
+. "$HOME/.cargo/env"
+'
+    fi
+
+    # Starship
+    if command_exists starship; then
+        content+="
+# Starship
+eval \"\$(starship init $SELECTED_SHELL)\"
+"
+    fi
+
+    echo "$content"
+}
+
+# =============================================================================
+# SHELL CONFIGURATION
+# =============================================================================
+
+configure_bash() {
+    local rc="$HOME/.bashrc"
+    local config_dir="$HOME/.config/bash"
+    
+    mkdir -p "$config_dir"
+    
+    # Backup original if no backup exists
+    [ ! -f "$rc.pre-castle" ] && [ -f "$rc" ] && cp "$rc" "$rc.pre-castle"
+    
+    # Write config files
+    generate_aliases > "$config_dir/aliases.bash"
+    generate_functions > "$config_dir/functions.bash"
+    generate_env_file > "$config_dir/env.bash"
+    info "Generated $config_dir/{aliases,functions,env}.bash"
+    
+    # Remove old managed block
+    remove_managed_block "$rc"
+    
+    # Build managed block
+    local block
+    block=$(cat <<'EOF'
+# Source castle.lan config
+[ -f ~/.config/bash/env.bash ] && source ~/.config/bash/env.bash
+[ -f ~/.config/bash/aliases.bash ] && source ~/.config/bash/aliases.bash
+[ -f ~/.config/bash/functions.bash ] && source ~/.config/bash/functions.bash
+
+EOF
+)
+    block+="$(generate_paths)"
+    
+    append_managed_block "$rc" "$block"
+    info "Configured ~/.bashrc"
+}
+
+configure_zsh() {
+    local rc="$HOME/.zshrc"
+    local config_dir="$HOME/.config/zsh"
+    
+    mkdir -p "$config_dir"
+    
+    # Write config files
+    generate_aliases > "$config_dir/aliases.zsh"
+    generate_functions > "$config_dir/functions.zsh"
+    generate_env_file > "$config_dir/env.zsh"
+    info "Generated $config_dir/{aliases,functions,env}.zsh"
+    
+    # Create .zshrc if missing
+    if [ ! -f "$rc" ]; then
+        cat <<'EOF' > "$rc"
+# Zsh Configuration
+
+# History
+HISTFILE=~/.zsh_history
+HISTSIZE=10000
+SAVEHIST=10000
+setopt APPEND_HISTORY SHARE_HISTORY INC_APPEND_HISTORY
+setopt HIST_IGNORE_DUPS HIST_IGNORE_ALL_DUPS
+
+# Completion
+autoload -Uz compinit && compinit
+EOF
+        info "Created new ~/.zshrc"
     else
-        warn "Go is not installed. Skipping OpenCode installation."
-        warn "Install Go first, then run: go install github.com/opencode-ai/opencode@latest"
-        return 1
+        [ ! -f "$rc.pre-castle" ] && cp "$rc" "$rc.pre-castle"
     fi
+    
+    # Remove old managed block
+    remove_managed_block "$rc"
+    
+    # Build managed block
+    local block
+    block=$(cat <<'EOF'
+# Source castle.lan config
+[ -f ~/.config/zsh/env.zsh ] && source ~/.config/zsh/env.zsh
+[ -f ~/.config/zsh/aliases.zsh ] && source ~/.config/zsh/aliases.zsh
+[ -f ~/.config/zsh/functions.zsh ] && source ~/.config/zsh/functions.zsh
+
+EOF
+)
+    block+="$(generate_paths)"
+    
+    append_managed_block "$rc" "$block"
+    info "Configured ~/.zshrc"
 }
 
-# =============================================================================
-# Copy zsh config files
-# =============================================================================
-copy_zsh_config() {
-    info "Copying zsh configuration..."
-    mkdir -p "$HOME/.config/zsh"
-
-    cp "$SCRIPT_DIR/.zshrc" "$HOME/.zshrc"
-    cp "$SCRIPT_DIR/.config/zsh/aliases" "$HOME/.config/zsh/aliases"
-    cp "$SCRIPT_DIR/.config/zsh/functions" "$HOME/.config/zsh/functions"
-
-    if [ -f "$SCRIPT_DIR/.config/environment" ]; then
-        cp "$SCRIPT_DIR/.config/environment" "$HOME/.config/environment"
-    fi
-
-    info "zsh configuration copied"
+configure_shell() {
+    case "$SELECTED_SHELL" in
+        bash) configure_bash ;;
+        zsh)  configure_zsh ;;
+    esac
 }
 
-# =============================================================================
-# Copy fish config files
-# =============================================================================
-copy_fish_config() {
-    info "Copying fish configuration..."
-    mkdir -p "$HOME/.config/fish/functions"
-
-    cp "$SCRIPT_DIR/.config/fish/config.fish" "$HOME/.config/fish/config.fish"
-    cp "$SCRIPT_DIR/.config/fish/functions/"*.fish "$HOME/.config/fish/functions/"
-
-    if [ -f "$SCRIPT_DIR/.config/environment.fish" ]; then
-        cp "$SCRIPT_DIR/.config/environment.fish" "$HOME/.config/environment.fish"
-    fi
-
-    info "fish configuration copied"
-}
-
-# =============================================================================
-# Copy shell config files (based on selection)
-# =============================================================================
-copy_shell_config() {
-    if [[ "$SELECTED_SHELL" == "fish" ]]; then
-        copy_fish_config
-    else
-        copy_zsh_config
-    fi
-}
-
-# =============================================================================
-# Copy git config
-# =============================================================================
-copy_git_config() {
-    info "Copying git configuration..."
-    mkdir -p "$HOME/.config/git"
-    cp "$SCRIPT_DIR/.config/git/config" "$HOME/.config/git/config"
-    info "Git configuration copied"
-}
-
-# =============================================================================
-# Copy Claude Code config
-# =============================================================================
-copy_claude_config() {
-    info "Copying Claude Code configuration..."
-    mkdir -p "$HOME/.claude/commands"
-
-    if [ ! -f "$HOME/.claude/settings.json" ]; then
-        cp "$SCRIPT_DIR/.claude/settings.json" "$HOME/.claude/settings.json"
-        info "Claude Code settings installed"
-    else
-        warn "Claude Code settings.json already exists, skipping"
-    fi
-
-    cp "$SCRIPT_DIR/.claude/commands/"*.md "$HOME/.claude/commands/"
-    info "Claude Code custom commands installed"
-}
-
-# =============================================================================
-# Set default shell (based on selection)
-# =============================================================================
 set_default_shell() {
-    local target_shell
-    if [[ "$SELECTED_SHELL" == "fish" ]]; then
-        target_shell="$(which fish)"
-    else
-        target_shell="$(which zsh)"
-    fi
-
-    if [ "$SHELL" = "$target_shell" ]; then
-        info "$SELECTED_SHELL is already the default shell"
-    else
+    local target
+    target=$(which "$SELECTED_SHELL")
+    if [ "$SHELL" != "$target" ]; then
         info "Setting $SELECTED_SHELL as default shell..."
-        chsh -s "$target_shell"
-        warn "Please log out and back in for the shell change to take effect"
-    fi
-}
-
-# =============================================================================
-# Print summary
-# =============================================================================
-print_summary() {
-    echo ""
-    echo "========================================"
-    echo "  Installation Summary"
-    echo "========================================"
-
-    if [ -n "$SELECTED_SHELL" ]; then
-        echo -e "${BLUE}Shell:${NC} $SELECTED_SHELL"
-    fi
-
-    if [ ${#INSTALLED[@]} -gt 0 ]; then
-        echo -e "${GREEN}Installed:${NC}"
-        for item in "${INSTALLED[@]}"; do
-            echo "  ✓ $item"
-        done
-    fi
-
-    if [ ${#SKIPPED[@]} -gt 0 ]; then
-        echo -e "${YELLOW}Skipped:${NC}"
-        for item in "${SKIPPED[@]}"; do
-            echo "  - $item"
-        done
-    fi
-
-    echo ""
-    if [[ "$SELECTED_SHELL" == "fish" ]]; then
-        warn "Please restart your terminal or run 'exec fish' to apply changes"
+        chsh -s "$target"
+        INSTALLED+=("default-shell:$SELECTED_SHELL")
     else
-        warn "Please restart your terminal or run 'exec zsh' to apply changes"
+        info "$SELECTED_SHELL is already default"
     fi
 }
 
 # =============================================================================
-# Main
+# MAIN
 # =============================================================================
-main() {
-    echo "========================================"
-    echo "  Linux Settings Installation Script"
-    echo "========================================"
-    echo ""
-    echo "This script will guide you through installing"
-    echo "various tools and configurations."
-    echo ""
 
-    # Check for flags
-    INSTALL_ALL=false
+main() {
+    # Parse flags
     for arg in "$@"; do
         case "$arg" in
             --yes|-y) INSTALL_ALL=true ;;
-            --zsh) SELECTED_SHELL="zsh" ;;
-            --fish) SELECTED_SHELL="fish" ;;
+            --zsh)    SELECTED_SHELL="zsh" ;;
+            --bash)   SELECTED_SHELL="bash" ;;
         esac
     done
 
-    if $INSTALL_ALL; then
-        info "Running in non-interactive mode (--yes)"
-        # Default to zsh if no shell specified in non-interactive mode
-        if [ -z "$SELECTED_SHELL" ]; then
-            SELECTED_SHELL="zsh"
-        fi
-        echo ""
-    fi
+    # Default to zsh for unattended install
+    $INSTALL_ALL && [ -z "$SELECTED_SHELL" ] && SELECTED_SHELL="zsh"
+    
+    # Interactive shell selection
+    [ -z "$SELECTED_SHELL" ] && prompt_shell
+    info "Target shell: $SELECTED_SHELL"
 
-    # ===================
-    # Shell Selection
-    # ===================
-    if [ -z "$SELECTED_SHELL" ]; then
-        echo -e "${BOLD}── Shell Selection ──${NC}"
-        prompt_shell
-        echo ""
-    fi
-    info "Selected shell: $SELECTED_SHELL"
+    # Install zsh if selected
+    [[ "$SELECTED_SHELL" == "zsh" ]] && prompt "Install zsh?" && install_zsh
+
+    # Starship
+    prompt "Install Starship?" && install_starship
+
+    # Tools
+    install_tools
+
+    # Configure
+    prompt "Configure $SELECTED_SHELL?" && configure_shell
+
+    # Set default
+    prompt "Set $SELECTED_SHELL as default?" && set_default_shell
+
+    # Summary
     echo ""
-
-    # ===================
-    # Core Shell Setup
-    # ===================
-    echo -e "${BOLD}── Core Shell Setup ──${NC}"
-
-    if [[ "$SELECTED_SHELL" == "fish" ]]; then
-        if $INSTALL_ALL || prompt "Install fish (shell)?"; then
-            install_fish && INSTALLED+=("fish") || SKIPPED+=("fish")
-        else
-            SKIPPED+=("fish")
-        fi
-    else
-        if $INSTALL_ALL || prompt "Install zsh (shell)?"; then
-            install_zsh && INSTALLED+=("zsh") || SKIPPED+=("zsh")
-        else
-            SKIPPED+=("zsh")
-        fi
+    echo -e "${GREEN}${BOLD}Done!${NC}"
+    if [ ${#INSTALLED[@]} -gt 0 ]; then
+        echo "Installed/configured: ${INSTALLED[*]}"
     fi
-
-    if $INSTALL_ALL || prompt "Install starship (prompt theme)?"; then
-        install_starship && INSTALLED+=("starship") || SKIPPED+=("starship")
-    else
-        SKIPPED+=("starship")
-    fi
-
-    echo ""
-
-    # ===================
-    # Development Tools
-    # ===================
-    echo -e "${BOLD}── Development Tools ──${NC}"
-
-    if $INSTALL_ALL || prompt "Install bun (JavaScript runtime)?"; then
-        install_bun && INSTALLED+=("bun") || SKIPPED+=("bun")
-    else
-        SKIPPED+=("bun")
-    fi
-
-    if $INSTALL_ALL || prompt "Install uv (Python package manager)?"; then
-        install_uv && INSTALLED+=("uv") || SKIPPED+=("uv")
-    else
-        SKIPPED+=("uv")
-    fi
-
-    if $INSTALL_ALL || prompt "Install gh (GitHub CLI)?"; then
-        install_gh && INSTALLED+=("gh") || SKIPPED+=("gh")
-    else
-        SKIPPED+=("gh")
-    fi
-
-    echo ""
-
-    # ===================
-    # Container Tools
-    # ===================
-    echo -e "${BOLD}── Container Tools ──${NC}"
-
-    if $INSTALL_ALL || prompt "Install docker (container platform)?"; then
-        install_docker && INSTALLED+=("docker") || SKIPPED+=("docker")
-    else
-        SKIPPED+=("docker")
-    fi
-
-    if $INSTALL_ALL || prompt "Install lazydocker (Docker TUI)?"; then
-        install_lazydocker && INSTALLED+=("lazydocker") || SKIPPED+=("lazydocker")
-    else
-        SKIPPED+=("lazydocker")
-    fi
-
-    echo ""
-
-    # ===================
-    # CLI Utilities
-    # ===================
-    echo -e "${BOLD}── CLI Utilities ──${NC}"
-
-    if $INSTALL_ALL || prompt "Install eza (modern ls replacement)?"; then
-        install_eza && INSTALLED+=("eza") || SKIPPED+=("eza")
-    else
-        SKIPPED+=("eza")
-    fi
-
-    echo ""
-
-    # ===================
-    # AI Tools
-    # ===================
-    echo -e "${BOLD}── AI Tools ──${NC}"
-
-    if $INSTALL_ALL || prompt "Install Claude Code CLI?"; then
-        install_claude && INSTALLED+=("claude") || SKIPPED+=("claude")
-    else
-        SKIPPED+=("claude")
-    fi
-
-    if $INSTALL_ALL || prompt "Install OpenCode CLI?" "n"; then
-        install_opencode && INSTALLED+=("opencode") || SKIPPED+=("opencode")
-    else
-        SKIPPED+=("opencode")
-    fi
-
-    echo ""
-
-    # ===================
-    # Configuration Files
-    # ===================
-    echo -e "${BOLD}── Configuration Files ──${NC}"
-
-    if $INSTALL_ALL || prompt "Copy $SELECTED_SHELL configuration?"; then
-        copy_shell_config && INSTALLED+=("$SELECTED_SHELL config") || SKIPPED+=("$SELECTED_SHELL config")
-    else
-        SKIPPED+=("$SELECTED_SHELL config")
-    fi
-
-    if $INSTALL_ALL || prompt "Copy git configuration?"; then
-        copy_git_config && INSTALLED+=("git config") || SKIPPED+=("git config")
-    else
-        SKIPPED+=("git config")
-    fi
-
-    if $INSTALL_ALL || prompt "Copy Claude Code configuration (settings, commands)?"; then
-        copy_claude_config && INSTALLED+=("claude config") || SKIPPED+=("claude config")
-    else
-        SKIPPED+=("claude config")
-    fi
-
-    echo ""
-
-    # ===================
-    # Final Setup
-    # ===================
-    echo -e "${BOLD}── Final Setup ──${NC}"
-
-    if $INSTALL_ALL || prompt "Set $SELECTED_SHELL as default shell?"; then
-        set_default_shell && INSTALLED+=("$SELECTED_SHELL as default") || SKIPPED+=("$SELECTED_SHELL as default")
-    else
-        SKIPPED+=("$SELECTED_SHELL as default")
-    fi
-
-    # Print summary
-    print_summary
+    echo "Restart your shell or run: source ~/.$SELECTED_SHELL""rc"
 }
 
 main "$@"

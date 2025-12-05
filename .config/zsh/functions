@@ -3,3 +3,12 @@
 mkcd () {
   mkdir -p -- "$1" && cd -P -- "$1"
 }
+
+# Ask Claude a question, output the answer to stdio
+
+
+
+# Ask Gemini a question, output the answer to stdio
+
+
+
