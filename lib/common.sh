@@ -20,7 +20,7 @@ NC='\033[0m'
 info()  { echo -e "${GREEN}[INFO]${NC} $1"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
 error() { echo -e "${RED}[ERROR]${NC} $1"; }
-debug() { $DEBUG && echo -e "${DIM}[DEBUG] $1${NC}"; }
+debug() { $DEBUG && echo -e "${DIM}[DEBUG] $1${NC}" || true; }
 
 # =============================================================================
 # PLATFORM/ARCHITECTURE DETECTION
