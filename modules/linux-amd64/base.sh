@@ -1,9 +1,12 @@
 # modules/base.sh - General aliases and functions (no dependencies)
 
 MODULE_NAME="base"
-MODULE_MODE="core"
+MODULE_DESCRIPTION="Core aliases and shell functions"
 
-module_install() { :; }  # Nothing to install
+module_check() { return 0; }  # Always "installed" - just aliases/functions
+module_install() { return 0; }
+module_update() { return 0; }
+module_config() { return 0; }
 
 module_aliases() {
     cat <<'EOF'

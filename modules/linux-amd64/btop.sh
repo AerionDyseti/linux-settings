@@ -1,14 +1,19 @@
 # modules/btop.sh - System monitor
 
 MODULE_NAME="btop"
-MODULE_MODE="dev"
+MODULE_DESCRIPTION="Modern system monitor"
+
+module_check() { has btop; }
 
 module_install() {
-    has btop && { info "btop already installed"; return 0; }
-    prompt "Install btop?" || return 0
     sudo apt install -y btop
-    INSTALLED+=("btop")
 }
+
+module_update() {
+    sudo apt update && sudo apt upgrade -y btop
+}
+
+module_config() { return 0; }
 
 module_aliases() {
     has btop || return

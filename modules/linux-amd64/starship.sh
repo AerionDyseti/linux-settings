@@ -1,15 +1,19 @@
 # modules/starship.sh - Cross-shell prompt
 
 MODULE_NAME="starship"
-MODULE_MODE="dev"
+MODULE_DESCRIPTION="Cross-shell customizable prompt"
+
+module_check() { has starship; }
 
 module_install() {
-    has starship && { info "starship already installed"; return 0; }
-    prompt "Install Starship?" || return 0
     curl -sS https://starship.rs/install.sh | sh -s -- -y
-    INSTALLED+=("starship")
-    
-    # Copy config if it exists
+}
+
+module_update() {
+    curl -sS https://starship.rs/install.sh | sh -s -- -y
+}
+
+module_config() {
     if [ -f "$SCRIPT_DIR/config/starship.toml" ]; then
         mkdir -p "$HOME/.config"
         cp "$SCRIPT_DIR/config/starship.toml" "$HOME/.config/starship.toml"

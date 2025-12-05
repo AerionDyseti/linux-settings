@@ -1,23 +1,31 @@
 # modules/opencode.sh - OpenCode CLI
 
 MODULE_NAME="opencode"
-MODULE_MODE="dev"
+MODULE_DESCRIPTION="OpenAI coding assistant CLI"
+
+module_check() { has opencode; }
 
 module_install() {
-    has opencode && { info "opencode already installed"; return 0; }
-    prompt "Install OpenCode CLI?" || return 0
-    
     # TODO: Update install command for opencode
-    if has npm; then
-        npm install -g opencode
-    elif has bun; then
+    if has bun; then
         bun install -g opencode
+    elif has npm; then
+        npm install -g opencode
     else
         warn "Node or Bun required for OpenCode CLI"
         return 1
     fi
-    INSTALLED+=("opencode")
 }
+
+module_update() {
+    if has bun; then
+        bun update -g opencode
+    elif has npm; then
+        npm update -g opencode
+    fi
+}
+
+module_config() { return 0; }
 
 module_aliases() {
     has opencode || return

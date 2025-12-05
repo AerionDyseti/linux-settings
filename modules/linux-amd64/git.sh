@@ -1,14 +1,13 @@
-# modules/git.sh - Version control
+# modules/git.sh - Git aliases and configuration
 
 MODULE_NAME="git"
-MODULE_MODE="dev"
+MODULE_DESCRIPTION="Git aliases and workflow functions"
 
-module_install() {
-    has git && { info "git already installed"; return 0; }
-    prompt "Install git?" || return 0
-    sudo apt install -y git
-    INSTALLED+=("git")
-}
+# Git is assumed installed (required to clone this repo)
+module_check() { has git; }
+module_install() { return 0; }  # Git assumed present
+module_update() { return 0; }
+module_config() { return 0; }
 
 module_aliases() {
     has git || return

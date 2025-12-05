@@ -1,11 +1,11 @@
 # modules/eza.sh - Modern ls replacement
 
 MODULE_NAME="eza"
-MODULE_MODE="core"
+MODULE_DESCRIPTION="Modern ls replacement with icons and git integration"
+
+module_check() { has eza; }
 
 module_install() {
-    has eza && { info "eza already installed"; return 0; }
-    prompt "Install eza?" || return 0
     sudo apt update && sudo apt install -y gpg
     sudo mkdir -p /etc/apt/keyrings
     wget -qO- https://raw.githubusercontent.com/eza-community/eza/main/deb.asc | sudo gpg --dearmor -o /etc/apt/keyrings/gierens.gpg
@@ -13,8 +13,13 @@ module_install() {
         | sudo tee /etc/apt/sources.list.d/gierens.list
     sudo chmod 644 /etc/apt/keyrings/gierens.gpg /etc/apt/sources.list.d/gierens.list
     sudo apt update && sudo apt install -y eza
-    INSTALLED+=("eza")
 }
+
+module_update() {
+    sudo apt update && sudo apt upgrade -y eza
+}
+
+module_config() { return 0; }
 
 module_aliases() {
     has eza || return

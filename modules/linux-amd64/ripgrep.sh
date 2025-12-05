@@ -1,14 +1,19 @@
 # modules/ripgrep.sh - Fast grep replacement
 
 MODULE_NAME="ripgrep"
-MODULE_MODE="core"
+MODULE_DESCRIPTION="Fast grep alternative"
+
+module_check() { has rg; }
 
 module_install() {
-    has rg && { info "ripgrep already installed"; return 0; }
-    prompt "Install ripgrep?" || return 0
     sudo apt install -y ripgrep
-    INSTALLED+=("ripgrep")
 }
+
+module_update() {
+    sudo apt update && sudo apt upgrade -y ripgrep
+}
+
+module_config() { return 0; }
 
 module_aliases() {
     has rg || return

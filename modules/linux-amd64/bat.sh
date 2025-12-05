@@ -1,17 +1,22 @@
 # modules/bat.sh - Cat with syntax highlighting
 
 MODULE_NAME="bat"
-MODULE_MODE="core"
+MODULE_DESCRIPTION="Cat clone with syntax highlighting"
+
+module_check() { has bat || has batcat; }
 
 module_install() {
-    has bat && { info "bat already installed"; return 0; }
-    prompt "Install bat?" || return 0
     sudo apt install -y bat
     # Ubuntu names it batcat, symlink to bat
     mkdir -p "$HOME/.local/bin"
     [ ! -L "$HOME/.local/bin/bat" ] && ln -sf "$(which batcat)" "$HOME/.local/bin/bat"
-    INSTALLED+=("bat")
 }
+
+module_update() {
+    sudo apt update && sudo apt upgrade -y bat
+}
+
+module_config() { return 0; }
 
 module_aliases() {
     has bat || return

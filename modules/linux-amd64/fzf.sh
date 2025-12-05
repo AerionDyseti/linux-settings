@@ -1,14 +1,19 @@
 # modules/fzf.sh - Fuzzy finder
 
 MODULE_NAME="fzf"
-MODULE_MODE="dev"
+MODULE_DESCRIPTION="Command-line fuzzy finder"
+
+module_check() { has fzf; }
 
 module_install() {
-    has fzf && { info "fzf already installed"; return 0; }
-    prompt "Install fzf?" || return 0
     sudo apt install -y fzf
-    INSTALLED+=("fzf")
 }
+
+module_update() {
+    sudo apt update && sudo apt upgrade -y fzf
+}
+
+module_config() { return 0; }
 
 module_aliases() { :; }
 

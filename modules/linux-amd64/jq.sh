@@ -1,14 +1,19 @@
 # modules/jq.sh - JSON processor
 
 MODULE_NAME="jq"
-MODULE_MODE="core"
+MODULE_DESCRIPTION="Command-line JSON processor"
+
+module_check() { has jq; }
 
 module_install() {
-    has jq && { info "jq already installed"; return 0; }
-    prompt "Install jq?" || return 0
     sudo apt install -y jq
-    INSTALLED+=("jq")
 }
+
+module_update() {
+    sudo apt update && sudo apt upgrade -y jq
+}
+
+module_config() { return 0; }
 
 module_aliases() { :; }
 

@@ -1,14 +1,19 @@
 # modules/uv.sh - Python package manager
 
 MODULE_NAME="uv"
-MODULE_MODE="dev"
+MODULE_DESCRIPTION="Fast Python package manager"
+
+module_check() { has uv; }
 
 module_install() {
-    has uv && { info "uv already installed"; return 0; }
-    prompt "Install uv?" || return 0
     curl -LsSf https://astral.sh/uv/install.sh | sh
-    INSTALLED+=("uv")
 }
+
+module_update() {
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+}
+
+module_config() { return 0; }
 
 module_aliases() {
     has uv || return

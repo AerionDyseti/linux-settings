@@ -1,11 +1,11 @@
 # modules/docker.sh - Container runtime
 
 MODULE_NAME="docker"
-MODULE_MODE="dev"
+MODULE_DESCRIPTION="Container runtime and compose"
+
+module_check() { has docker; }
 
 module_install() {
-    has docker && { info "docker already installed"; return 0; }
-    prompt "Install Docker?" || return 0
     sudo apt update
     sudo apt install -y ca-certificates curl gnupg
     sudo install -m 0755 -d /etc/apt/keyrings
@@ -16,8 +16,13 @@ module_install() {
     sudo apt update
     sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     sudo usermod -aG docker "$USER"
-    INSTALLED+=("docker")
 }
+
+module_update() {
+    sudo apt update && sudo apt upgrade -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+}
+
+module_config() { return 0; }
 
 module_aliases() {
     has docker || return
