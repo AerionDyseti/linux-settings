@@ -25,6 +25,15 @@ module_update() {
     fi
 }
 
+
+module_uninstall() {
+    if has bun; then
+        bun remove -g opencode
+    elif has npm; then
+        npm uninstall -g opencode
+    fi
+}
+
 module_config() { return 0; }
 
 module_aliases() {

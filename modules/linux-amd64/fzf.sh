@@ -13,6 +13,11 @@ module_update() {
     sudo apt update && sudo apt upgrade -y fzf
 }
 
+
+module_uninstall() {
+    sudo apt remove -y fzf
+}
+
 module_config() { return 0; }
 
 module_aliases() { :; }

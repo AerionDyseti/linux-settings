@@ -19,6 +19,13 @@ module_update() {
     sudo apt update && sudo apt upgrade -y eza
 }
 
+
+module_uninstall() {
+    sudo apt remove -y eza
+    sudo rm -f /etc/apt/sources.list.d/gierens.list
+    sudo rm -f /etc/apt/keyrings/gierens.gpg
+}
+
 module_config() { return 0; }
 
 module_aliases() {

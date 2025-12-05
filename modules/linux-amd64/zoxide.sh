@@ -13,6 +13,11 @@ module_update() {
     curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh
 }
 
+
+module_uninstall() {
+    rm -f "$HOME/.local/bin/zoxide"
+}
+
 module_config() { return 0; }
 
 module_aliases() {

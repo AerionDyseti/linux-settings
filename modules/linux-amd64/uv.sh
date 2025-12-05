@@ -13,6 +13,11 @@ module_update() {
     curl -LsSf https://astral.sh/uv/install.sh | sh
 }
 
+
+module_uninstall() {
+    rm -f "$HOME/.local/bin/uv" "$HOME/.local/bin/uvx"
+}
+
 module_config() { return 0; }
 
 module_aliases() {

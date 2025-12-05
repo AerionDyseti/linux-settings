@@ -13,6 +13,11 @@ module_update() {
     sudo apt update && sudo apt upgrade -y btop
 }
 
+
+module_uninstall() {
+    sudo apt remove -y btop
+}
+
 module_config() { return 0; }
 
 module_aliases() {

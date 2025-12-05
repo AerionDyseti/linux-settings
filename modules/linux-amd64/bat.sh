@@ -16,6 +16,12 @@ module_update() {
     sudo apt update && sudo apt upgrade -y bat
 }
 
+
+module_uninstall() {
+    sudo apt remove -y bat
+    rm -f "$HOME/.local/bin/bat"
+}
+
 module_config() { return 0; }
 
 module_aliases() {

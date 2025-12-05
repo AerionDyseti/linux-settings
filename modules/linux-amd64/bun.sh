@@ -15,6 +15,11 @@ module_update() {
     bun upgrade
 }
 
+
+module_uninstall() {
+    rm -rf "$HOME/.bun"
+}
+
 module_config() { return 0; }
 
 module_aliases() {

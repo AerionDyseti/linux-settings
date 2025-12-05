@@ -47,82 +47,92 @@ declare -A MODULE_PATHS
 declare -a MODULE_ORDER           # Preserve load order
 declare -a SYSTEM_MODULE_ORDER    # System modules (loaded first)
 declare -a NEWLY_INSTALLED        # Track what we installed this run
+declare -a FAILED_MODULES         # Track modules that failed to install
 
 # Profile modules (loaded from profile file)
 declare -a PROFILE_MODULES
 
 # =============================================================================
-# MODULE LOADING
+# MODULE PROCESSING (Single-pass per module)
 # =============================================================================
 
-# Load a single module, storing its metadata and outputs
-load_module() {
+# Process a single module completely: load → check → install → capture → config
+# Returns 0 on success, 1 on failure (but caller should handle gracefully)
+process_module() {
     local file="$1"
     local is_system="${2:-false}"
+    local should_install="${3:-false}"  # true = install if missing, false = just load
 
     # Source the module to get its definitions
     source "$file"
 
-    # Store file path for later install/update calls
-    MODULE_FILES[$MODULE_NAME]="$file"
-    MODULE_DESCRIPTIONS[$MODULE_NAME]="${MODULE_DESCRIPTION:-No description}"
+    local name="$MODULE_NAME"
+    local desc="${MODULE_DESCRIPTION:-No description}"
+
+    # Store metadata
+    MODULE_FILES[$name]="$file"
+    MODULE_DESCRIPTIONS[$name]="$desc"
 
     # Track order
     if $is_system; then
-        SYSTEM_MODULE_ORDER+=("$MODULE_NAME")
+        SYSTEM_MODULE_ORDER+=("$name")
     else
-        MODULE_ORDER+=("$MODULE_NAME")
+        MODULE_ORDER+=("$name")
     fi
 
     # Check if already installed
     if module_check 2>/dev/null; then
-        MODULE_INSTALLED[$MODULE_NAME]=0
-    else
-        MODULE_INSTALLED[$MODULE_NAME]=1
-    fi
-
-    # Capture config outputs once (only if installed, for performance)
-    if [[ ${MODULE_INSTALLED[$MODULE_NAME]} -eq 0 ]]; then
-        MODULE_ALIASES[$MODULE_NAME]="$(module_aliases 2>/dev/null || true)"
-        MODULE_FUNCTIONS[$MODULE_NAME]="$(module_functions 2>/dev/null || true)"
-        MODULE_ENV[$MODULE_NAME]="$(module_env 2>/dev/null || true)"
-        MODULE_PATHS[$MODULE_NAME]="$(module_paths 2>/dev/null || true)"
-    fi
-
-    # Unset module functions to prevent conflicts with next module
-    unset -f module_check module_install module_update module_config 2>/dev/null || true
-    unset -f module_aliases module_functions module_env module_paths 2>/dev/null || true
-    unset MODULE_NAME MODULE_DESCRIPTION 2>/dev/null || true
-}
-
-# Re-source and run module_install
-run_module_install() {
-    local name="$1"
-    local file="${MODULE_FILES[$name]}"
-
-    if would_do "install $name"; then
-        return 0
-    fi
-
-    source "$file"
-    if module_install; then
-        NEWLY_INSTALLED+=("$name")
         MODULE_INSTALLED[$name]=0
-        log_install "$name"
+        debug "$name: already installed"
+    else
+        MODULE_INSTALLED[$name]=1
+        debug "$name: not installed"
 
-        # Now capture config outputs
+        # Install if requested
+        if $should_install; then
+            if would_do "install $name"; then
+                # Dry-run mode: pretend success
+                MODULE_INSTALLED[$name]=0
+            elif module_install; then
+                NEWLY_INSTALLED+=("$name")
+                MODULE_INSTALLED[$name]=0
+                log_install "$name"
+                info "Installed: $name"
+            else
+                log_error "Failed to install $name"
+                FAILED_MODULES+=("$name")
+                # Clean up and return - don't capture outputs for failed module
+                unset -f module_check module_install module_update module_config 2>/dev/null || true
+                unset -f module_aliases module_functions module_env module_paths 2>/dev/null || true
+                unset MODULE_NAME MODULE_DESCRIPTION 2>/dev/null || true
+                return 1
+            fi
+        fi
+    fi
+
+    # Capture config outputs (only if installed)
+    if [[ ${MODULE_INSTALLED[$name]} -eq 0 ]]; then
         MODULE_ALIASES[$name]="$(module_aliases 2>/dev/null || true)"
         MODULE_FUNCTIONS[$name]="$(module_functions 2>/dev/null || true)"
         MODULE_ENV[$name]="$(module_env 2>/dev/null || true)"
         MODULE_PATHS[$name]="$(module_paths 2>/dev/null || true)"
-    else
-        log_error "Failed to install $name"
-        return 1
+
+        # Run module_config for newly installed modules
+        if [[ " ${NEWLY_INSTALLED[*]} " == *" $name "* ]]; then
+            module_config 2>/dev/null || true
+        fi
     fi
+
+    # Clean up module functions for next module
+    unset -f module_check module_install module_update module_config 2>/dev/null || true
+    unset -f module_aliases module_functions module_env module_paths 2>/dev/null || true
+    unset MODULE_NAME MODULE_DESCRIPTION 2>/dev/null || true
+
+    return 0
 }
 
-# Re-source and run module_update
-run_module_update() {
+# Update a module (re-source and call module_update)
+update_module() {
     local name="$1"
     local file="${MODULE_FILES[$name]}"
 
@@ -133,22 +143,18 @@ run_module_update() {
     source "$file"
     if module_update 2>/dev/null; then
         log_update "$name"
+        info "Updated: $name"
     else
         warn "Update not available for $name"
     fi
+
+    unset -f module_check module_install module_update module_config 2>/dev/null || true
+    unset -f module_aliases module_functions module_env module_paths 2>/dev/null || true
+    unset MODULE_NAME MODULE_DESCRIPTION 2>/dev/null || true
 }
 
-# Re-source and run module_config
-run_module_config() {
-    local name="$1"
-    local file="${MODULE_FILES[$name]}"
-
-    source "$file"
-    module_config 2>/dev/null || true
-}
-
-# Load all modules from platform directory
-load_all_modules() {
+# Scan modules directory and store file paths (for dry-run/preview)
+scan_modules() {
     local platform="$1"
     local module_dir="$SCRIPT_DIR/modules/$platform"
 
@@ -158,20 +164,18 @@ load_all_modules() {
         exit 1
     fi
 
-    # Load system modules first (from _system/ subdirectory)
+    # Scan system modules first
     if [[ -d "$module_dir/_system" ]]; then
         for module_file in "$module_dir/_system/"*.sh; do
             [[ -f "$module_file" ]] || continue
-            debug "Loading system module: $module_file"
-            load_module "$module_file" true
+            process_module "$module_file" true false
         done
     fi
 
-    # Load regular modules
+    # Scan regular modules
     for module_file in "$module_dir/"*.sh; do
         [[ -f "$module_file" ]] || continue
-        debug "Loading module: $module_file"
-        load_module "$module_file" false
+        process_module "$module_file" false false
     done
 
     info "Loaded ${#SYSTEM_MODULE_ORDER[@]} system modules, ${#MODULE_ORDER[@]} regular modules"
@@ -549,64 +553,81 @@ main() {
     # Load profile if specified
     [[ -n "$PROFILE_NAME" ]] && load_profile "$PROFILE_NAME"
 
-    # Load all modules for this platform
-    load_all_modules "$PLATFORM"
-
-    # Dry-run: show what would happen and exit
+    # Dry-run: scan modules without installing, then show preview
     if $DRY_RUN; then
+        scan_modules "$PLATFORM"
         show_dry_run
         exit 0
     fi
 
-    # Install system modules (always, required)
-    echo ""
-    info "Installing system modules..."
-    for name in "${SYSTEM_MODULE_ORDER[@]}"; do
-        if [[ ${MODULE_INSTALLED[$name]} -eq 0 ]]; then
-            log_skip "$name"
-        else
-            run_module_install "$name"
-        fi
-    done
+    # Get module directory
+    local module_dir="$SCRIPT_DIR/modules/$PLATFORM"
+    if [[ ! -d "$module_dir" ]]; then
+        error "No modules found for platform: $PLATFORM"
+        error "Expected directory: $module_dir"
+        exit 1
+    fi
 
-    # Install or update regular modules
+    # Process system modules (always installed, required)
+    echo ""
+    info "Processing system modules..."
+    if [[ -d "$module_dir/_system" ]]; then
+        for module_file in "$module_dir/_system/"*.sh; do
+            [[ -f "$module_file" ]] || continue
+            process_module "$module_file" true true || true
+        done
+    fi
+
+    # Process or update regular modules
     echo ""
     if $UPDATE_MODE; then
+        # Update mode: first scan all modules, then update installed ones
+        info "Scanning modules..."
+        for module_file in "$module_dir/"*.sh; do
+            [[ -f "$module_file" ]] || continue
+            process_module "$module_file" false false || true
+        done
+
         info "Updating installed modules..."
         for name in "${MODULE_ORDER[@]}"; do
             [[ ${MODULE_INSTALLED[$name]} -eq 0 ]] || continue
-            run_module_update "$name"
+            update_module "$name"
         done
     else
-        info "Installing modules..."
-        for name in "${MODULE_ORDER[@]}"; do
+        info "Processing modules..."
+        for module_file in "$module_dir/"*.sh; do
+            [[ -f "$module_file" ]] || continue
+
+            # Peek at module to get name for profile check (source temporarily)
+            source "$module_file"
+            local name="$MODULE_NAME"
+            local desc="${MODULE_DESCRIPTION:-No description}"
+            unset -f module_check module_install module_update module_config 2>/dev/null || true
+            unset -f module_aliases module_functions module_env module_paths 2>/dev/null || true
+            unset MODULE_NAME MODULE_DESCRIPTION 2>/dev/null || true
+
             # Check profile filter
             if ! module_in_profile "$name"; then
                 debug "Skipping $name (not in profile)"
                 continue
             fi
 
-            # Already installed?
-            if [[ ${MODULE_INSTALLED[$name]} -eq 0 ]]; then
-                log_skip "$name"
-                continue
-            fi
-
-            # Prompt or auto-install
+            # Determine if we should install
+            local should_install=false
             if $INSTALL_ALL; then
-                run_module_install "$name"
+                should_install=true
             else
-                if prompt "Install $name? (${MODULE_DESCRIPTIONS[$name]})"; then
-                    run_module_install "$name"
+                if prompt "Install $name? ($desc)"; then
+                    should_install=true
                 fi
             fi
+
+            # Process the module (will skip if already installed)
+            process_module "$module_file" false "$should_install" || true
         done
     fi
 
-    # Run module_config for newly installed modules
-    for name in "${NEWLY_INSTALLED[@]}"; do
-        run_module_config "$name"
-    done
+    info "Loaded ${#SYSTEM_MODULE_ORDER[@]} system modules, ${#MODULE_ORDER[@]} regular modules"
 
     # Install zsh if selected
     if [[ "$SELECTED_SHELL" == "zsh" ]]; then
@@ -627,11 +648,18 @@ main() {
 
     # Summary
     echo ""
-    echo -e "${GREEN}${BOLD}Done!${NC}"
+    if [[ ${#FAILED_MODULES[@]} -gt 0 ]]; then
+        echo -e "${YELLOW}${BOLD}Completed with errors${NC}"
+    else
+        echo -e "${GREEN}${BOLD}Done!${NC}"
+    fi
     echo -e "Platform: $PLATFORM"
     [[ -n "$PROFILE_NAME" ]] && echo -e "Profile: $PROFILE_NAME"
     if [[ ${#NEWLY_INSTALLED[@]} -gt 0 ]]; then
-        echo "Installed: ${NEWLY_INSTALLED[*]}"
+        echo -e "${GREEN}Installed:${NC} ${NEWLY_INSTALLED[*]}"
+    fi
+    if [[ ${#FAILED_MODULES[@]} -gt 0 ]]; then
+        echo -e "${RED}Failed:${NC} ${FAILED_MODULES[*]}"
     fi
     echo ""
     echo "Restart your shell or run: source ~/.$SELECTED_SHELL""rc"

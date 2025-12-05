@@ -18,6 +18,11 @@ module_update() {
     module_install
 }
 
+
+module_uninstall() {
+    sudo dpkg -r git-delta
+}
+
 module_config() { return 0; }
 
 module_aliases() { :; }

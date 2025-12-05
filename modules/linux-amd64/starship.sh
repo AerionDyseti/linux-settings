@@ -13,6 +13,11 @@ module_update() {
     curl -sS https://starship.rs/install.sh | sh -s -- -y
 }
 
+
+module_uninstall() {
+    sudo rm -f /usr/local/bin/starship
+}
+
 module_config() {
     if [ -f "$SCRIPT_DIR/config/starship.toml" ]; then
         mkdir -p "$HOME/.config"

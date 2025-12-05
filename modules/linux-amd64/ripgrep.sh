@@ -13,6 +13,11 @@ module_update() {
     sudo apt update && sudo apt upgrade -y ripgrep
 }
 
+
+module_uninstall() {
+    sudo apt remove -y ripgrep
+}
+
 module_config() { return 0; }
 
 module_aliases() {

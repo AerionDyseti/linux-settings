@@ -18,6 +18,11 @@ module_update() {
     module_install
 }
 
+
+module_uninstall() {
+    rm -f "$HOME/.local/bin/lazygit"
+}
+
 module_config() { return 0; }
 
 module_aliases() {

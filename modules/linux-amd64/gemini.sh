@@ -6,11 +6,10 @@ MODULE_DESCRIPTION="Google Gemini AI CLI"
 module_check() { has gemini; }
 
 module_install() {
-    # TODO: Update package name for your gemini CLI
     if has bun; then
-        bun install -g @anthropic-ai/gemini-cli
+        bun install -g @google/gemini-cli
     elif has npm; then
-        npm install -g @anthropic-ai/gemini-cli
+        npm install -g @google/gemini-cli
     else
         warn "Node or Bun required for Gemini CLI"
         return 1
@@ -19,9 +18,18 @@ module_install() {
 
 module_update() {
     if has bun; then
-        bun update -g @anthropic-ai/gemini-cli
+        bun update -g @google/gemini-cli
     elif has npm; then
-        npm update -g @anthropic-ai/gemini-cli
+        npm update -g @google/gemini-cli
+    fi
+}
+
+
+module_uninstall() {
+    if has bun; then
+        bun remove -g @google/gemini-cli
+    elif has npm; then
+        npm uninstall -g @google/gemini-cli
     fi
 }
 

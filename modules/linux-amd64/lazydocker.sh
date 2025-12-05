@@ -13,6 +13,12 @@ module_update() {
     module_install
 }
 
+
+module_uninstall() {
+    sudo apt remove -y docker.io docker-compose
+    sudo gpasswd -d "$USER" docker 2>/dev/null || true
+}
+
 module_config() { return 0; }
 
 module_aliases() {

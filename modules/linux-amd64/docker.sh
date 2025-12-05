@@ -22,6 +22,12 @@ module_update() {
     sudo apt update && sudo apt upgrade -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 }
 
+
+module_uninstall() {
+    sudo apt remove -y docker.io docker-compose
+    sudo gpasswd -d "$USER" docker 2>/dev/null || true
+}
+
 module_config() { return 0; }
 
 module_aliases() {

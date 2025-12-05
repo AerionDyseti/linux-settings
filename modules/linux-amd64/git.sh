@@ -7,6 +7,9 @@ MODULE_DESCRIPTION="Git aliases and workflow functions"
 module_check() { has git; }
 module_install() { return 0; }  # Git assumed present
 module_update() { return 0; }
+
+module_uninstall() { return 0; }  # Nothing to uninstall
+
 module_config() { return 0; }
 
 module_aliases() {

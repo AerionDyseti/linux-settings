@@ -24,6 +24,15 @@ module_update() {
     fi
 }
 
+
+module_uninstall() {
+    if has bun; then
+        bun remove -g @anthropic-ai/claude-code
+    elif has npm; then
+        npm uninstall -g @anthropic-ai/claude-code
+    fi
+}
+
 module_config() {
     if [ -f "$SCRIPT_DIR/config/claude.json" ]; then
         mkdir -p "$HOME/.claude"

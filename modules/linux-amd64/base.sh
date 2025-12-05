@@ -6,6 +6,9 @@ MODULE_DESCRIPTION="Core aliases and shell functions"
 module_check() { return 0; }  # Always "installed" - just aliases/functions
 module_install() { return 0; }
 module_update() { return 0; }
+
+module_uninstall() { return 0; }  # Nothing to uninstall
+
 module_config() { return 0; }
 
 module_aliases() {
