@@ -391,6 +391,16 @@ EOF
 [ -f ~/.config/$ext/aliases.$ext ] && source ~/.config/$ext/aliases.$ext
 [ -f ~/.config/$ext/functions.$ext ] && source ~/.config/$ext/functions.$ext
 
+# WSL migration reminder (auto-expires)
+if [[ -f ~/.config/wsl-migration-reminder ]]; then
+    local remind_until=\$(cat ~/.config/wsl-migration-reminder)
+    if [[ \$(date +%s) -lt \$remind_until ]]; then
+        echo "⚠️  Old WSL distro may still exist. Delete after \$(date -d @\$remind_until +%Y-%m-%d) if unused."
+    else
+        rm -f ~/.config/wsl-migration-reminder
+    fi
+fi
+
 EOF
 )
     block+="$(generate_paths)"

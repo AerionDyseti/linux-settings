@@ -45,6 +45,23 @@ alias gpl='git pull'
 alias gs='git status'
 alias gd='git diff'
 alias gl='git log --oneline -n 20'
+# Get up and walk away.
+alias wip='git add . && git commit -m "WIP" --no-verify && git push'
+alias oops='git stash push -u -m "oops-$(date +%Y%m%d-%H%M)" && git reset --hard HEAD'
+alias oops-outline='git stash show -p | grep -E "^(\+def |\+class |\+function |\+const |\+type )"'
+# Compare current attempt with a previous stash
+alias oops-diff='git stash show -p'
+# Compare two repos side-by-side (same project, different lang)
+diffproj() { diff -rq ~/dev/"$1" ~/dev/"$2" --exclude=node_modules --exclude=.git --exclude=__pycache__ | head -30; }
+# Lightweight branch for trying something crazy
+experiment() {
+  local name="${1:-$(date +%H%M)}"
+  git checkout -b "experiment/$name" && echo "Go wild. Abandon with: nope"
+}
+
+# Abandon experiment and return
+alias nope='git checkout - && git branch -D @{-1}'
+
 EOF
 }
 

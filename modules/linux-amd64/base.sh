@@ -6,12 +6,10 @@ MODULE_DESCRIPTION="Core aliases and shell functions"
 module_check() { return 0; }  # Always "installed" - just aliases/functions
 module_install() { return 0; }
 module_update() { return 0; }
-
 module_uninstall() { return 0; }  # Nothing to uninstall
-
 module_config() { return 0; }
-
 module_aliases() {
+
     cat <<'EOF'
 # General
 alias sc='systemctl'
@@ -29,7 +27,6 @@ alias myip='curl -s ifconfig.me'
 alias localip='hostname -I | awk "{print \$1}"'
 
 # Misc
-alias weather='curl wttr.in'
 alias path='echo $PATH | tr ":" "\n"'
 alias now='date +"%Y-%m-%d %H:%M:%S"'
 EOF
@@ -65,7 +62,7 @@ extract() {
 }
 
 # Find process by name
-psg() {
+findprocess() {
     ps aux | grep -v grep | grep -i "$1"
 }
 
@@ -75,7 +72,7 @@ bak() {
 }
 
 # Create temp directory and cd into it
-tmpd() {
+tmpcd() {
     local dir
     dir=$(mktemp -d)
     echo "Created $dir"
@@ -131,11 +128,5 @@ serve() {
 EOF
 }
 
-module_env() {
-    cat <<'EOF'
-# Local binaries
-export PATH="$HOME/.local/bin:$PATH"
-EOF
-}
 
 module_paths() { :; }
