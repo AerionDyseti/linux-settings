@@ -497,6 +497,79 @@ show_dry_run() {
 }
 
 # =============================================================================
+# BOOTSTRAP - Prerequisites check
+# =============================================================================
+
+bootstrap_check() {
+    local missing=()
+
+    # Check for git
+    if ! has git; then
+        missing+=("git")
+    fi
+
+    # Check for gh (GitHub CLI)
+    if ! has gh; then
+        missing+=("gh")
+    fi
+
+    # If nothing missing, we're good
+    [[ ${#missing[@]} -eq 0 ]] && return 0
+
+    echo ""
+    warn "Missing prerequisites: ${missing[*]}"
+    echo ""
+
+    if prompt "Install missing prerequisites?"; then
+        for pkg in "${missing[@]}"; do
+            case "$pkg" in
+                git)
+                    info "Installing git..."
+                    if is_macos; then
+                        xcode-select --install 2>/dev/null || brew install git
+                    else
+                        sudo apt update && sudo apt install -y git
+                    fi
+                    ;;
+                gh)
+                    info "Installing GitHub CLI..."
+                    if is_macos; then
+                        brew install gh
+                    else
+                        sudo mkdir -p -m 755 /etc/apt/keyrings
+                        wget -qO- https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null
+                        sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
+                        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+                        sudo apt update && sudo apt install -y gh
+                    fi
+                    ;;
+            esac
+        done
+
+        # Verify installation
+        for pkg in "${missing[@]}"; do
+            if ! has "$pkg"; then
+                error "Failed to install $pkg"
+                exit 1
+            fi
+            info "Installed: $pkg"
+        done
+
+        # Prompt for gh auth if gh was just installed
+        if [[ " ${missing[*]} " == *" gh "* ]]; then
+            echo ""
+            info "GitHub CLI installed. You should authenticate now."
+            if prompt "Run 'gh auth login' now?"; then
+                gh auth login
+            fi
+        fi
+    else
+        error "Cannot continue without: ${missing[*]}"
+        exit 1
+    fi
+}
+
+# =============================================================================
 # MAIN
 # =============================================================================
 
@@ -535,6 +608,9 @@ main() {
                 ;;
         esac
     done
+
+    # Bootstrap check - ensure git and gh are available
+    bootstrap_check
 
     # Detect platform
     PLATFORM=$(detect_platform_arch)

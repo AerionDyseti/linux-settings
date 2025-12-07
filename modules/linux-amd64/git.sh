@@ -10,7 +10,29 @@ module_update() { return 0; }
 
 module_uninstall() { return 0; }  # Nothing to uninstall
 
-module_config() { return 0; }
+module_config() {
+    # Set up gh credential helper if gh is installed
+    if has gh; then
+        git config --global credential.https://github.com.helper ""
+        git config --global credential.https://github.com.helper "!/usr/bin/gh auth git-credential"
+        git config --global credential.https://gist.github.com.helper ""
+        git config --global credential.https://gist.github.com.helper "!/usr/bin/gh auth git-credential"
+        info "Configured git to use gh for GitHub authentication"
+    fi
+
+    # Prompt for user identity if not set
+    if [ -z "$(git config --global user.name)" ]; then
+        read -p "Enter your Git name: " git_name
+        git config --global user.name "$git_name"
+    fi
+
+    if [ -z "$(git config --global user.email)" ]; then
+        read -p "Enter your Git email: " git_email
+        git config --global user.email "$git_email"
+    fi
+
+    info "Git user: $(git config --global user.name) <$(git config --global user.email)>"
+}
 
 module_aliases() {
     has git || return

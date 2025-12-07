@@ -1,0 +1,55 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  
+  // MCP Servers section - placeholder for future configuration
+  "mcp": {},
+
+  // Global settings
+  "autoupdate": true,
+  
+  // Tool management
+  "tools": {},
+
+  // Agents configuration
+  "agent": {
+    "build": {
+      "mode": "primary",
+      "description": "Full development mode with all tools enabled",
+      "temperature": 0.3,
+      "tools": {
+        "write": true,
+        "edit": true,
+        "bash": true
+      }
+    },
+    "plan": {
+      "mode": "primary",
+      "description": "Planning and analysis without making changes",
+      "temperature": 0.1,
+      "permission": {
+        "edit": "deny",
+        "bash": {
+          "git status": "allow",
+          "git log*": "allow",
+          "git diff*": "allow",
+          "*": "ask"
+        }
+      },
+      "tools": {
+        "write": false,
+        "edit": false,
+        "bash": false
+      }
+    }
+  },
+
+  // Permissions
+  "permission": {
+    "bash": "ask",
+    "webfetch": "ask"
+  },
+
+  // Custom instructions from your CLAUDE.md
+  "instructions": [
+  ]
+}
